@@ -1,0 +1,12 @@
+.{
+    .name = .gpio,
+    .version = "0.0.0",
+    .fingerprint = 0xba76d4d1eed37837,
+    .minimum_zig_version = "0.14.0",
+    .dependencies = .{ },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
