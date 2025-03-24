@@ -61,16 +61,29 @@ fn init() !void {
     }
 }
 
+fn rave(comptime count: u8) !void {
+    for (0..count) |_| {
+        std.time.sleep(500 * 1000 * 1000);
+        inline for (PINS) |pin| try pinHigh(pin);
+        std.time.sleep(500 * 1000 * 1000);
+        inline for (PINS) |pin| try pinLow(pin);
+    }
+}
+
 pub fn main() !void {
     try init();
 
     log.err("time to RAVE", .{});
-    for (0..10) |_| {
-        std.time.sleep(1 * 1000 * 1000 * 1000);
-        inline for (PINS) |pin| try pinHigh(pin);
-        std.time.sleep(1 * 1000 * 1000 * 1000);
-        inline for (PINS) |pin| try pinLow(pin);
+    var argv = std.process.args();
+    const arg0 = argv.next();
+    _ = arg0;
+    var argc: usize = 1;
+    while (argv.next()) |arg| {
+        argc += 1;
+        _ = arg;
     }
+
+    if (argc <= 1) try rave(10);
 }
 
 const std = @import("std");
