@@ -33,9 +33,13 @@ fn exportPin(comptime pin: u16) !void {
         return err;
     };
     defer direction_dir.close();
-    var direction_file = try direction_dir.openFile(DIRECTION, .{ .mode = .write_only });
+    var direction_file = try direction_dir.openFile(DIRECTION, .{ .mode = .read_write });
     defer direction_file.close();
-    try direction_file.writeAll("out");
+    var buf: [4]u8 = undefined;
+    const c = try direction_file.read(&buf);
+    if (c >= 3 and !std.mem.eql(u8, buf[0..3], "out")) {
+        try direction_file.writeAll("out");
+    }
 }
 
 const PinLevel = enum {
