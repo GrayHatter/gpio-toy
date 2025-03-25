@@ -96,6 +96,7 @@ fn init() !void {
 }
 
 fn rave(comptime count: u8) !void {
+    log.err("time to RAVE", .{});
     for (0..count) |_| {
         std.time.sleep(500 * 1000 * 1000);
         inline for (PINS) |pin| try pinHigh(pin);
@@ -104,20 +105,64 @@ fn rave(comptime count: u8) !void {
     }
 }
 
+fn time() !void {
+    const DAY = 86400;
+    var current_time = std.time.timestamp();
+    const offset: i64 = -7 * 60 * 60;
+    while (true) {
+        current_time = std.time.timestamp();
+        if (@mod(current_time - offset, DAY) == 60 * 60) {
+            inline for (PINS) |pin| try pinLow(pin);
+            std.time.sleep(6 * 60 * 60 * 1000 * 1000);
+        } else if (@mod(current_time - offset, DAY) == 6 * 60 * 60) {
+            inline for (PINS) |pin| try pinLow(pin);
+            std.time.sleep(6 * 60 * 60 * 1000 * 1000);
+        }
+    }
+}
+
+const Modes = enum {
+    nos,
+    rave,
+    time,
+    toggle,
+};
+
 pub fn main() !void {
     try init();
 
-    log.err("time to RAVE", .{});
+    var mode: Modes = .nos;
     var argv = std.process.args();
     const arg0 = argv.next();
     _ = arg0;
-    var argc: usize = 1;
     while (argv.next()) |arg| {
-        argc += 1;
-        _ = arg;
+        if (std.meta.stringToEnum(Modes, arg)) |m| {
+            mode = m;
+            switch (m) {
+                .toggle => {
+                    if (argv.next()) |next| {
+                        const target = std.fmt.parseUnsigned(usize, next, 10) catch PINS.len;
+
+                        inline for (PINS, 0..) |pin, i| {
+                            if (i == target) {
+                                _ = try pinToggle(pin);
+                                break;
+                            }
+                        }
+                    } else {
+                        inline for (PINS) |pin| _ = try pinToggle(pin);
+                    }
+                },
+                else => {},
+            }
+        }
     }
 
-    if (argc <= 1) try rave(10);
+    switch (mode) {
+        .nos, .rave => try rave(10),
+        .time => try time(),
+        .toggle => {},
+    }
 }
 
 const std = @import("std");
