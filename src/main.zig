@@ -109,14 +109,20 @@ fn time() !void {
     const DAY = 86400;
     var current_time = std.time.timestamp();
     const offset: i64 = -7 * 60 * 60;
+    const mask: i64 = ~@as(i64, 3);
+    const offtime = 40 * 60;
+    const ontime = (7 * 60 + 40) * 60;
     while (true) {
         current_time = std.time.timestamp();
-        if (@mod(current_time - offset, DAY) == 60 * 60) {
+        log.debug("current time {} mod DAY {}", .{ current_time + offset, @mod(current_time + offset, DAY) & mask });
+        if (@mod(current_time + offset, DAY) & mask == offtime) {
             inline for (PINS) |pin| try pinLow(pin);
-            std.time.sleep(6 * 60 * 60 * 1000 * 1000);
-        } else if (@mod(current_time - offset, DAY) == 6 * 60 * 60) {
-            inline for (PINS) |pin| try pinLow(pin);
-            std.time.sleep(6 * 60 * 60 * 1000 * 1000);
+            std.time.sleep(6 * 60 * 60 * 1000 * 1000 * 1000);
+        } else if (@mod(current_time + offset, DAY) & mask == ontime) {
+            inline for (.{PINS[3]}) |pin| try pinLow(pin);
+            std.time.sleep(6 * 60 * 60 * 1000 * 1000 * 1000);
+        } else {
+            std.time.sleep(1 * 1000 * 1000 * 1000);
         }
     }
 }
