@@ -56,6 +56,31 @@ fn pinSet(comptime pin: u16, comptime level: PinLevel) !void {
     try value.writeAll(if (level == .high) "1" else "0");
 }
 
+fn pinGet(comptime pin: u16) !PinLevel {
+    var dir = try std.fs.openDirAbsolute(DIR, .{});
+    defer dir.close();
+    const pinvalue = std.fmt.comptimePrint("gpio{}/value", .{pin});
+    var value = try dir.openFile(pinvalue, .{ .mode = .read_only });
+    defer value.close();
+    var buf: [2]u8 = undefined;
+    const c = try value.read(&buf);
+    return if (c > 0 and buf[0] == '1') .high else .low;
+}
+
+/// Returns the value the pin was set to
+fn pinToggle(comptime pin: u16) !PinLevel {
+    switch (try pinGet(pin)) {
+        .high => {
+            try pinLow(pin);
+            return .low;
+        },
+        .low => {
+            try pinHigh(pin);
+            return .high;
+        },
+    }
+}
+
 fn pinLow(comptime pin: u16) !void {
     try pinSet(pin, .low);
 }
