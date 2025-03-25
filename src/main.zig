@@ -2,7 +2,12 @@ const DIR: []const u8 = "/sys/class/gpio";
 const EXPORT: []const u8 = "export";
 const DIRECTION: []const u8 = "direction";
 
-const PINS = [_]u16{ 517, 518, 525, 531 };
+const PINS = [_]u16{
+    517,
+    518,
+    525,
+    531,
+};
 
 fn exportPin(comptime pin: u16) !void {
     log.debug("export pin {}", .{pin});
