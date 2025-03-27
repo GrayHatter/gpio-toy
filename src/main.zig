@@ -127,37 +127,54 @@ fn time() !void {
     }
 }
 
-const Modes = enum {
+fn oneShot(m: Mode, argv: *std.process.ArgIterator) !void {
+    var targets: [PINS.len]?u16 = @splat(null);
+    var count: usize = 0;
+    while (argv.next()) |target| {
+        if (count >= PINS.len) @panic("supplied too many pins");
+        targets[count] = std.fmt.parseUnsigned(u16, target, 10) catch null;
+        count += 1;
+    }
+
+    for (0..count) |i| {
+        if (targets[i]) |target| {
+            inline for (PINS, 0..) |pin, j| {
+                if (j == target) {
+                    switch (m) {
+                        .toggle => _ = try pinToggle(pin),
+                        .high => _ = try pinHigh(pin),
+                        .low => _ = try pinLow(pin),
+                        else => unreachable,
+                    }
+                    break;
+                }
+            }
+        }
+    }
+}
+
+const Mode = enum {
     nos,
     rave,
     time,
     toggle,
+    high,
+    low,
 };
 
 pub fn main() !void {
     try init();
 
-    var mode: Modes = .nos;
+    var mode: Mode = .nos;
     var argv = std.process.args();
     const arg0 = argv.next();
     _ = arg0;
     while (argv.next()) |arg| {
-        if (std.meta.stringToEnum(Modes, arg)) |m| {
+        if (std.meta.stringToEnum(Mode, arg)) |m| {
             mode = m;
             switch (m) {
-                .toggle => {
-                    if (argv.next()) |next| {
-                        const target = std.fmt.parseUnsigned(usize, next, 10) catch PINS.len;
-
-                        inline for (PINS, 0..) |pin, i| {
-                            if (i == target) {
-                                _ = try pinToggle(pin);
-                                break;
-                            }
-                        }
-                    } else {
-                        inline for (PINS) |pin| _ = try pinToggle(pin);
-                    }
+                .toggle, .high, .low => {
+                    try oneShot(mode, &argv);
                 },
                 else => {},
             }
@@ -167,7 +184,7 @@ pub fn main() !void {
     switch (mode) {
         .nos, .rave => try rave(10),
         .time => try time(),
-        .toggle => {},
+        .toggle, .high, .low => {},
     }
 }
 
