@@ -105,24 +105,24 @@ fn rave(comptime count: u8) !void {
     }
 }
 
-fn time() !void {
+const uS_TO_SEC = 1000 * 1000 * 1000;
+
+fn timeMode(on_time: u32, off_time: u32, offset: i32) !void {
     const DAY = 86400;
-    var current_time = std.time.timestamp();
-    const offset: i64 = -7 * 60 * 60;
     const mask: i64 = ~@as(i64, 3);
-    const offtime = 40 * 60;
-    const ontime = (7 * 60 + 40) * 60;
+
     while (true) {
-        current_time = std.time.timestamp();
-        log.debug("current time {} mod DAY {}", .{ current_time + offset, @mod(current_time + offset, DAY) & mask });
-        if (@mod(current_time + offset, DAY) & mask == offtime) {
+        const current_time = std.time.timestamp();
+        const current_day = @mod(current_time + offset, DAY) & mask;
+        log.debug("current time {} mod DAY {}", .{ current_time + offset, current_day });
+        if (current_day == off_time) {
             inline for (PINS) |pin| try pinLow(pin);
-            std.time.sleep(6 * 60 * 60 * 1000 * 1000 * 1000);
-        } else if (@mod(current_time + offset, DAY) & mask == ontime) {
+            std.time.sleep(6 * 60 * 60 * uS_TO_SEC);
+        } else if (current_day == on_time) {
             inline for (.{PINS[3]}) |pin| try pinLow(pin);
-            std.time.sleep(6 * 60 * 60 * 1000 * 1000 * 1000);
+            std.time.sleep(6 * 60 * 60 * uS_TO_SEC);
         } else {
-            std.time.sleep(1 * 1000 * 1000 * 1000);
+            std.time.sleep(uS_TO_SEC);
         }
     }
 }
@@ -162,8 +162,25 @@ const Mode = enum {
     low,
 };
 
+fn parseTime(raw_time: []const u8) !i32 {
+    const time = std.mem.trim(u8, raw_time, " \t");
+    const hour_str, const min_str = if (std.mem.indexOfScalar(u8, time, ':')) |i|
+        .{ time[0..i], time[i..] }
+    else
+        .{ time[0..2], time[2..4] };
+
+    const hour = try std.fmt.parseInt(i32, hour_str, 0);
+    const min = try std.fmt.parseInt(i32, min_str, 0);
+    log.debug("parsed time {}", .{(hour * 60 + min) * 60});
+    return (hour * 60 + min) * 60;
+}
+
 pub fn main() !void {
     try init();
+
+    var on_time: u32 = 27600; // 07:40
+    var off_time: u32 = 2400; // 00:40
+    var offset: i32 = -25200; // -0700
 
     var mode: Mode = .nos;
     var argv = std.process.args();
@@ -178,12 +195,23 @@ pub fn main() !void {
                 },
                 else => {},
             }
+        } else {
+            if (std.mem.eql(u8, "--ontime", arg)) {
+                on_time = @abs(try parseTime(argv.next() orelse return error.IncompleteArgs));
+                log.debug("on time {}", .{on_time});
+            } else if (std.mem.eql(u8, "--offtime", arg)) {
+                off_time = @abs(try parseTime(argv.next() orelse return error.IncompleteArgs));
+                log.debug("off time {}", .{off_time});
+            } else if (std.mem.eql(u8, "--offset", arg)) {
+                offset = try parseTime(argv.next() orelse return error.IncompleteArgs);
+                log.debug("offset {}", .{offset});
+            }
         }
     }
 
     switch (mode) {
         .nos, .rave => try rave(10),
-        .time => try time(),
+        .time => try timeMode(on_time, off_time, offset),
         .toggle, .high, .low => {},
     }
 }
